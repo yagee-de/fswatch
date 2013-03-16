@@ -8,3 +8,6 @@ fswatch: $(OBJECTS)
 
 clean:
 	rm -f *.o fswatch
+
+install:
+	cp fswatch /usr/local/bin
