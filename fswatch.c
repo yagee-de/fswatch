@@ -6,8 +6,8 @@
 
 /* fswatch.c
  * 
- * usage: ./fswatch /some/directory[:/some/otherdirectory:...] "some command" 
- * "some command" is eval'd by bash when /some/directory generates any file events
+ * usage: ./fswatch /some/directory[:/some/otherdirectory:...]
+ * will return with code "0" if any file was changed
  *
  * compile me with something like: gcc fswatch.c -framework CoreServices -o fswatch
  *
@@ -15,8 +15,6 @@
 */
 
 extern char **environ;
-//the command to run
-char *to_run;
 
 //fork a process when there's any change in watch file
 void callback( 
@@ -30,22 +28,12 @@ void callback(
   pid_t pid;
   int   status;
 
-  /*printf("Callback called\n"); */
-
   if((pid = fork()) < 0) {
     fprintf(stderr, "error: couldn't fork \n");
     exit(1);
   } else if (pid == 0) {
-    char *args[4] = {
-      "/bin/bash",
-      "-c",
-      to_run,
-      0
-    };
-    if(execve(args[0], args, environ) < 0) {
-      fprintf(stderr, "error: error executing\n");
-      exit(1);
-    }
+    printf("Modified.\n");
+    exit(0);
   } else {
     while(wait(&status) != pid)
       ;
@@ -55,12 +43,10 @@ void callback(
 //set up fsevents and callback
 int main(int argc, char **argv) {
 
-  if(argc != 3) {
-    fprintf(stderr, "You must specify a directory to watch and a command to execute on change\n");
+  if(argc != 2) {
+    fprintf(stderr, "You must specify a directory to watch\n");
     exit(1);
   }
-
-  to_run = argv[2];
 
   CFStringRef mypath = CFStringCreateWithCString(NULL, argv[1], kCFStringEncodingUTF8); 
   CFArrayRef pathsToWatch = CFStringCreateArrayBySeparatingStrings (NULL, mypath, CFSTR(":"));
@@ -78,8 +64,9 @@ int main(int argc, char **argv) {
     kFSEventStreamCreateFlagNone
   ); 
 
+  printf("Wait for modify\n");
   FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode); 
   FSEventStreamStart(stream);
-  CFRunLoopRun();
-
+  CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1.0e10, true);
+  printf("Finished\n");
 }
